@@ -7,16 +7,17 @@ demog <- data.frame(age = 0:100,
                     year = 0)
 
 
-demog[1:11,]$death_rate <- 10 ** (seq(0,10) * (-0.2) - 2)  
-demog[12:101,]$death_rate <- 10 ** (seq(11,100) * (3.5/90) - 39.5/9)  
-
 demog <- 
-demog %>% mutate(num_people = num_people - if_else(age < 50, 0, 800000* (age - 50) / 50)) 
+    demog %>%
+    mutate(death_rate = if_else(age <11, 10 ** (age * (-0.2) - 2), 10 ** (age * (3.5/90) - 39.5/9))) %>%
+    
+    mutate(num_people = num_people - if_else(age < 50, 0, 800000* (age - 50) / 50)) 
 
-demog %>% ggplot(aes(x = age, y = death_rate)) + geom_point() + scale_y_log10()
+demog %>% ggplot(aes(x = age, y = death_rate)) + geom_point(colour = "blue") + scale_y_log10()
+demog %>% ggplot(aes(x = age, y = num_people)) + geom_point(colour = "blue") 
 
-demog %>% summarise(sum(num_people*death_rate))
 
+demog %>% summarise(num_death = sum(num_people*death_rate), population = sum(num_people))
 
 for(i in (1:100)){
     demog <- 
@@ -28,7 +29,12 @@ for(i in (1:100)){
         rbind(demog)
 }
 
+
+
+demog %>% group_by(year) %>% summarise(num_death = sum(num_people*death_rate), population = sum(num_people)) %>% View()
+
+
 demog %>% group_by(year) %>% summarise(sum(num_people*death_rate)) %>% View()
 
 demog %>% group_by(year) %>% summarise(population = sum(num_people)) %>%
-    ggplot(aes(x = year, y = population)) + geom_point()
+    ggplot(aes(x = year, y = population)) + geom_point(colour = "blue")
