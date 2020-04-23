@@ -1,3 +1,19 @@
+---
+title: "COVID19-Frontloading"
+author: "Nima Hamedani-Raja"
+date: "23/04/2020"
+output: 
+  html_document: 
+    fig_height: 6
+    fig_width: 9
+    keep_md: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
 #### INIT
 
 library(dplyr)
@@ -134,3 +150,4 @@ demog_summary %>%
     ggplot(aes(x = year, y = tot_death, colour = crona)) +
     geom_point() +
     geom_line()
+```
