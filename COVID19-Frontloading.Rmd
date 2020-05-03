@@ -103,9 +103,10 @@ demog_nocorona %>%
   geom_point()
 
 demog_nocorona %>% 
-    filter(year <= 10) %>%
-    ggplot(aes(x = age, y = num_people, colour = as.factor(year))) + 
-    geom_point() 
+  # filter(year <= 10) %>%
+  ggplot(aes(x = age, y = num_people, colour = as.factor(year))) + 
+  geom_point() +
+  transition_time(year)
 ```
 
 

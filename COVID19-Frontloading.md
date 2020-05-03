@@ -135,12 +135,13 @@ demog_nocorona %>%
 
 ```r
 demog_nocorona %>% 
-    filter(year <= 10) %>%
-    ggplot(aes(x = age, y = num_people, colour = as.factor(year))) + 
-    geom_point() 
+  # filter(year <= 10) %>%
+  ggplot(aes(x = age, y = num_people, colour = as.factor(year))) + 
+  geom_point() +
+  transition_time(year)
 ```
 
-![](COVID19-Frontloading_files/figure-html/nocorona_summary-5.png)<!-- -->
+![](COVID19-Frontloading_files/figure-html/nocorona_summary-1.gif)<!-- -->
 
 
 
