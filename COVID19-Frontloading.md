@@ -1,7 +1,7 @@
 ---
 title: "COVID19-Frontloading"
 author: "Nima Hamedani-Raja"
-date: "23/04/2020"
+date: "03/05/2020"
 output: 
   html_document: 
     fig_height: 6
@@ -11,61 +11,46 @@ output:
 
 
 
+# About
+
+What is frontloading?
+
+# Read Input data
+
+(add links to the sources)  
+(explain assumptions)
+
 
 ```r
-#### INIT
-
-library(dplyr)
-```
-
-```
-## Warning: package 'dplyr' was built under R version 3.4.4
-```
-
-```
-## 
-## Attaching package: 'dplyr'
-```
-
-```
-## The following objects are masked from 'package:stats':
-## 
-##     filter, lag
-```
-
-```
-## The following objects are masked from 'package:base':
-## 
-##     intersect, setdiff, setequal, union
-```
-
-```r
-library(ggplot2)
-
-#### Read demo
-
 demog <- 
-    inner_join(read.csv("death_rate_v_age.csv"), read.csv("num_people_v_age.csv"), by = "age") %>%
-    mutate(year = 0)
-
-#### sanity checks
-
-demog %>% 
-    ggplot(aes(x = age, y = num_people)) + 
-    geom_bar(stat = "identity", fill = "blue") +
-    coord_flip() 
+    inner_join(
+      read.csv("input data/death_rate_v_age.csv"), 
+      read.csv("input data/num_people_v_age.csv"), 
+      by = "age") %>%
+  mutate(year = 0)
 ```
 
-![](COVID19-Frontloading_files/figure-html/unnamed-chunk-1-1.png)<!-- -->
+
 
 ```r
 demog %>% 
-    ggplot(aes(x = age, y = death_rate)) + 
-    geom_point(colour = "blue") + 
-    scale_y_log10()
+  ggplot(aes(x = age, y = num_people)) + 
+  geom_bar(stat = "identity", fill = "blue") +
+  coord_flip() +
+  ggtitle("Population Pyramid")
 ```
 
-![](COVID19-Frontloading_files/figure-html/unnamed-chunk-1-2.png)<!-- -->
+![](COVID19-Frontloading_files/figure-html/Input_data checks-1.png)<!-- -->
+
+```r
+demog %>% 
+  ggplot(aes(x = age, y = death_rate)) + 
+  geom_point(colour = "blue") + 
+  scale_y_log10() +
+  ggtitle("Death rate v. age")
+```
+
+![](COVID19-Frontloading_files/figure-html/Input_data checks-2.png)<!-- -->
 
 ```r
 demog %>% summarise(num_death = sum(num_people*death_rate), population = sum(num_people))
@@ -77,159 +62,178 @@ demog %>% summarise(num_death = sum(num_people*death_rate), population = sum(num
 ```
 
 ```r
-demog %>% summarise(annual_rate = sum(num_people*death_rate) / sum(num_people))
+demog %>% summarise(annual_death_rate = sum(num_people*death_rate) / sum(num_people))
 ```
 
 ```
-##   annual_rate
-## 1  0.01064312
+##   annual_death_rate
+## 1        0.01064312
 ```
+
+# Generate next years (no change in death rate)
+
 
 ```r
-#### Generate next years
-
-num_years <- 50
-annual_birth <- 750000
-demog_nocrona <- demog
-
-for(i in (1:num_years)){
-    demog_nocrona <- 
-        demog_nocrona %>% 
-        filter(year == max(year)) %>%
-        mutate(num_people = num_people * (1-death_rate),
-               num_people = num_people %>% lag(1),
-               num_people = replace(num_people, is.na(num_people), annual_birth),
-               year = year + 1) %>%
-        rbind(demog_nocrona)
+demog_next_years <- function(demog, num_years, annual_birth, corona_factor){
+  demog_local <- demog
+  
+  for(i in (1:num_years)){
+    demog_local <- 
+      demog_local %>% 
+      filter(year == max(year)) %>%
+      mutate(num_people = num_people * (1-corona_factor*death_rate),
+             num_people = num_people %>% lag(1),
+             num_people = replace(num_people, is.na(num_people), annual_birth),
+             year = year + 1) %>%
+      rbind(demog_local)
+  }
+  demog_local
 }
 
-#### time-series summaries
+demog_nocorona <- demog_next_years(demog,50,750000,1)
+```
 
-demog_nocrona_summary <- 
-    demog_nocrona %>% 
+
+```r
+demog_nocorona_summary <- 
+    demog_nocorona %>% 
     group_by(year) %>% 
     summarise(num_death = sum(num_people*death_rate), population = sum(num_people)) %>%
     mutate(annual_death_rate = num_death/population)
 
-demog_nocrona_summary %>% 
+demog_nocorona_summary %>% 
     ggplot(aes(x = year, y =annual_death_rate)) +
     geom_point(colour = "blue")
 ```
 
-![](COVID19-Frontloading_files/figure-html/unnamed-chunk-1-3.png)<!-- -->
+![](COVID19-Frontloading_files/figure-html/nocorona_summary-1.png)<!-- -->
 
 ```r
-demog_nocrona_summary %>% 
+demog_nocorona_summary %>% 
     ggplot(aes(x = year, y =population)) +
     geom_point(colour = "blue")
 ```
 
-![](COVID19-Frontloading_files/figure-html/unnamed-chunk-1-4.png)<!-- -->
+![](COVID19-Frontloading_files/figure-html/nocorona_summary-2.png)<!-- -->
 
 ```r
-demog_nocrona_summary %>% 
+demog_nocorona_summary %>% 
     ggplot(aes(x = year, y =annual_death_rate)) + 
     geom_point(colour = "blue")
 ```
 
-![](COVID19-Frontloading_files/figure-html/unnamed-chunk-1-5.png)<!-- -->
+![](COVID19-Frontloading_files/figure-html/nocorona_summary-3.png)<!-- -->
 
 ```r
-demog_nocrona %>% 
+demog_nocorona %>% 
+  filter(year <= 10) %>%
+  ggplot(aes(x = age, y = num_people, colour = as.factor(year))) + 
+  geom_point()
+```
+
+![](COVID19-Frontloading_files/figure-html/nocorona_summary-4.png)<!-- -->
+
+```r
+demog_nocorona %>% 
     filter(year <= 10) %>%
     ggplot(aes(x = age, y = num_people, colour = as.factor(year))) + 
     geom_point() 
 ```
 
-![](COVID19-Frontloading_files/figure-html/unnamed-chunk-1-6.png)<!-- -->
+![](COVID19-Frontloading_files/figure-html/nocorona_summary-5.png)<!-- -->
+
+
 
 ```r
-############# with crona
+############# with corona
 
 #### Generate next years
 
-demog_crona <- demog
+num_years <- 50
+annual_birth <- 750000
 
-demog_crona <- 
-    demog_crona %>% 
+demog_corona <- demog
+
+demog_corona <- 
+    demog_corona %>% 
     filter(year == max(year)) %>%
     mutate(death_rate = 2 * death_rate, 
            num_people = num_people * (1-death_rate),
            num_people = num_people %>% lag(1),
            num_people = replace(num_people, is.na(num_people), annual_birth),
            year = year + 1) %>%
-    rbind(demog_crona)
+    rbind(demog_corona)
 
-demog_crona <- 
-    demog_crona %>% 
+demog_corona <- 
+    demog_corona %>% 
     filter(year == max(year)) %>%
     mutate(death_rate = death_rate / 2, 
            num_people = num_people * (1-death_rate),
            num_people = num_people %>% lag(1),
            num_people = replace(num_people, is.na(num_people), annual_birth),
            year = year + 1) %>%
-    rbind(demog_crona)
+    rbind(demog_corona)
 
 for(i in (1:(num_years-1))){
-    demog_crona <- 
-        demog_crona %>% 
+    demog_corona <- 
+        demog_corona %>% 
         filter(year == max(year)) %>%
         mutate(num_people = num_people * (1-death_rate),
                num_people = num_people %>% lag(1),
                num_people = replace(num_people, is.na(num_people), annual_birth),
                year = year + 1) %>%
-        rbind(demog_crona)
+        rbind(demog_corona)
 }
 
 #### time-series summaries
 
-demog_crona_summary <- 
-    demog_crona %>% 
+demog_corona_summary <- 
+    demog_corona %>% 
     group_by(year) %>% 
     summarise(num_death = sum(num_people*death_rate), population = sum(num_people)) %>%
     mutate(annual_death_rate = num_death/population)
 
-#### Comparing Crona and no-Crona
+#### Comparing corona and no-corona
 
 demog_summary <- 
-    rbind(demog_crona_summary %>% mutate(crona = "YES"),
-          demog_nocrona_summary %>% mutate(crona = "NO"))
+    rbind(demog_corona_summary %>% mutate(corona = "YES"),
+          demog_nocorona_summary %>% mutate(corona = "NO"))
 
-demog_summary %>% ggplot(aes(x = year, y = population, colour = crona)) + geom_point()
+demog_summary %>% ggplot(aes(x = year, y = population, colour = corona)) + geom_point()
 ```
 
-![](COVID19-Frontloading_files/figure-html/unnamed-chunk-1-7.png)<!-- -->
+![](COVID19-Frontloading_files/figure-html/unnamed-chunk-1-1.png)<!-- -->
 
 ```r
-demog_summary %>% ggplot(aes(x = year, y = num_death, colour = crona)) + geom_point() + geom_line() 
+demog_summary %>% ggplot(aes(x = year, y = num_death, colour = corona)) + geom_point() + geom_line() 
 ```
 
-![](COVID19-Frontloading_files/figure-html/unnamed-chunk-1-8.png)<!-- -->
+![](COVID19-Frontloading_files/figure-html/unnamed-chunk-1-2.png)<!-- -->
 
 ```r
-demog_summary %>% ggplot(aes(x = year, y = annual_death_rate, colour = crona)) + geom_point() 
+demog_summary %>% ggplot(aes(x = year, y = annual_death_rate, colour = corona)) + geom_point() 
 ```
 
-![](COVID19-Frontloading_files/figure-html/unnamed-chunk-1-9.png)<!-- -->
+![](COVID19-Frontloading_files/figure-html/unnamed-chunk-1-3.png)<!-- -->
 
 ```r
 demog_summary %>% 
-    group_by(crona) %>%
+    group_by(corona) %>%
     mutate(tot_death = cumsum(num_death)) %>%
-    ggplot(aes(x = year, y = tot_death, colour = crona)) +
+    ggplot(aes(x = year, y = tot_death, colour = corona)) +
     geom_point()
 ```
 
-![](COVID19-Frontloading_files/figure-html/unnamed-chunk-1-10.png)<!-- -->
+![](COVID19-Frontloading_files/figure-html/unnamed-chunk-1-4.png)<!-- -->
 
 ```r
 demog_summary %>% 
     filter(year <= 20) %>%
-    group_by(crona) %>%
+    group_by(corona) %>%
     mutate(tot_death = cumsum(num_death)) %>%
-    ggplot(aes(x = year, y = tot_death, colour = crona)) +
+    ggplot(aes(x = year, y = tot_death, colour = corona)) +
     geom_point() +
     geom_line()
 ```
 
-![](COVID19-Frontloading_files/figure-html/unnamed-chunk-1-11.png)<!-- -->
+![](COVID19-Frontloading_files/figure-html/unnamed-chunk-1-5.png)<!-- -->
